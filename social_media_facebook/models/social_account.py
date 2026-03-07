@@ -3365,6 +3365,30 @@ class SocialAccount(models.Model):
             account.update_facebook_impressions_engagements()
             account.last_insight_update = fields.Datetime.now()
 
+    def _get_chart_account_statistics(self, start_date, end_date, granularity):
+        """
+        Return chart statistics for the Facebook account using stored
+        aggregated metrics (synced by cron_update_facebook_insights).
+
+        Returns one statistics tuple representing the account's current totals,
+        formatted for _map_chart_statistics:
+          (click_count, like_count, comment_count, share_count, engagement,
+           impression_count)
+        """
+        self.ensure_one()
+        start, end = self._get_default_filter_date(start_date, end_date)
+        stats = [
+            (
+                self.click_count,
+                self.like_count,
+                self.comment_count,
+                self.share_count,
+                self.engagement,
+                self.impression_count,
+            )
+        ]
+        return self._map_chart_statistics(stats, start_date=start, end_date=end)
+
     def delete_account(self):
         res = super().delete_account()
         if self.media_type == "facebook":

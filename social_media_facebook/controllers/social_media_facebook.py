@@ -99,7 +99,16 @@ class SocialMediaFacebookController(http.Controller):
 
                 # Fetch available pages
                 _logger.debug("Fetching available Facebook pages...")
-                pages = account_model.get_pages_facebook(user_access_token)
+                try:
+                    pages = account_model.get_pages_facebook(user_access_token)
+                except Exception:
+                    _logger.exception(
+                        "Facebook OAuth callback: failed to fetch pages — "
+                        "the access token may be invalid or a network error occurred."
+                    )
+                    return request.redirect(
+                        "/web#action=social_media_base.social_media_act_window_kanban"
+                    )
                 _logger.debug(f"Found {len(pages)} pages")
 
                 if pages:
