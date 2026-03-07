@@ -175,6 +175,60 @@ class SocialAccount(models.Model):
         else:
             raise ValidationError(self.env._("REFRESH TOKEN: %s") % response.text)
 
+    def _cron_refresh_linkedin_tokens(self):
+        """Refresh LinkedIn access tokens expiring within 7 days.
+
+        Called daily by ir.cron. Proactively refreshes tokens so scheduled
+        posts are never blocked by expiry. Accounts whose refresh token has
+        also expired are flagged for manual re-authentication.
+        """
+        today = fields.Date.today()
+        warning_threshold = today + timedelta(days=7)
+
+        for account in self:
+            if account.media_id.media_type != "linkedin":
+                continue
+            if not account.expire_access_token_date:
+                continue
+
+            # Refresh token itself expired — manual re-auth required
+            if (
+                account.refresh_token_expires_in
+                and account.refresh_token_expires_in <= today
+            ):
+                _logger.warning(
+                    "LinkedIn refresh token expired for account %s (%s) — "
+                    "manual re-authentication required.",
+                    account.name,
+                    account.id,
+                )
+                account._notify_user_client(
+                    notif_type="social_form_error",
+                    notif_message=account.env._(
+                        "LinkedIn account '%s': refresh token expired. "
+                        "Please reconnect the account." % account.name
+                    ),
+                    media="linkedin",
+                    account_name=account.name,
+                )
+                continue
+
+            # Access token expires within threshold — refresh proactively
+            if account.expire_access_token_date <= warning_threshold:
+                try:
+                    account._refresh_token()
+                    _logger.info(
+                        "LinkedIn access token refreshed for account %s (%s).",
+                        account.name,
+                        account.id,
+                    )
+                except Exception:
+                    _logger.exception(
+                        "Failed to refresh LinkedIn token for account %s (%s).",
+                        account.name,
+                        account.id,
+                    )
+
     def _prepare_url_upload_asset(self, feedshare="image"):
         try:
             json_data = {

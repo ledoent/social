@@ -13,6 +13,7 @@
     ],
     "data": [
         "data/social_media_data.xml",
+        "data/ir_cron_data.xml",
         "views/social_post_account_views.xml",
         "views/social_account_views.xml",
         "views/utm_group_campaign_views.xml",
@@ -31,7 +32,7 @@
     },
     "external_dependencies": {
         "python": [
-            "linkedin-api-client",
+            "linkedin-api-client>=0.3.0,<1.0.0",
         ],
     },
     "exclude": ["social"],
