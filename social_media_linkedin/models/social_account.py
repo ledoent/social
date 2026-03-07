@@ -59,6 +59,29 @@ class SocialAccount(models.Model):
             )
         ]
 
+    @api.constrains("linkedin_account_urn")
+    def _check_linkedin_account_urn(self):
+        """Validate URN format: must be urn:li:organization:<numeric-id>"""
+        for record in self:
+            urn = record.linkedin_account_urn
+            if not urn:
+                continue
+            parts = urn.split(":")
+            if (
+                len(parts) != 4
+                or parts[0] != "urn"
+                or parts[1] != "li"
+                or parts[2] != "organization"
+                or not parts[3].isdigit()
+            ):
+                raise ValidationError(
+                    self.env._(
+                        "Invalid LinkedIn Account URN '%(urn)s'. "
+                        "Expected format: urn:li:organization:<numeric-id>",
+                        urn=urn,
+                    )
+                )
+
     @api.depends("linkedin_account_urn")
     def _compute_linkedin_account_id(self):
         for social_account in self:
