@@ -2,12 +2,15 @@
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
 import logging
+import secrets
 
 from werkzeug.urls import url_encode, url_join
 
 from odoo import _, fields, models
 
 from ..social_facebook_utils import _SCOPE_FACEBOOK_ALL, _URL_AUTH_FACEBOOK
+
+_OAUTH_STATE_PARAM = "social_media_facebook.oauth_state"
 
 _logger = logging.getLogger(__name__)
 
@@ -52,11 +55,16 @@ class WizardSocialAccount(models.TransientModel):
             redirect_url = self._get_url_redirect()
             _logger.debug(f"OAuth redirect URL: {redirect_url}")
 
+            # Generate and store a single-use CSRF state token
+            state = secrets.token_urlsafe(32)
+            self.env["ir.config_parameter"].sudo().set_param(_OAUTH_STATE_PARAM, state)
+
             params = {
                 "client_id": app_id,
                 "redirect_uri": redirect_url,
                 "scope": ",".join(_SCOPE_FACEBOOK_ALL),
                 "response_type": "code",
+                "state": state,
             }
             url_auth = f"{_URL_AUTH_FACEBOOK}?{url_encode(params)}"
             _logger.debug(f"Facebook OAuth URL: {url_auth[:100]}...")

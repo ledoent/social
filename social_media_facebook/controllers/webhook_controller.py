@@ -136,10 +136,11 @@ class FacebookWebhookController(http.Controller):
         )
 
         if not app_secret:
-            _logger.warning(
-                "App secret not configured, skipping signature verification"
+            _logger.error(
+                "Facebook app secret not configured — rejecting webhook. "
+                "Set social_media_base.facebook_app_secret in system parameters."
             )
-            return True  # Allow webhooks if secret not configured
+            return False  # Fail closed: reject all webhooks if secret is missing
 
         # Compute expected signature
         expected_signature = hmac.new(

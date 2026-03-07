@@ -2,11 +2,14 @@
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
 import logging
+import secrets
 
 from odoo import http
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
+
+_OAUTH_STATE_PARAM = "social_media_facebook.oauth_state"
 
 
 class SocialMediaFacebookController(http.Controller):
@@ -19,6 +22,7 @@ class SocialMediaFacebookController(http.Controller):
 
         authorization_code = kwargs.get("code", False)
         error = kwargs.get("error", False)
+        state = kwargs.get("state", "")
 
         if error:
             _logger.error(f"Facebook OAuth error: {error}")
@@ -29,6 +33,21 @@ class SocialMediaFacebookController(http.Controller):
 
         if authorization_code:
             _logger.debug(f"Authorization code received: {authorization_code[:20]}...")
+
+            # Validate CSRF state token
+            icp = request.env["ir.config_parameter"].sudo()
+            expected_state = icp.get_param(_OAUTH_STATE_PARAM, "")
+            if not expected_state or not secrets.compare_digest(state, expected_state):
+                _logger.error(
+                    "Facebook OAuth callback: invalid or missing state token — "
+                    "possible CSRF attack, aborting."
+                )
+                return request.redirect(
+                    "/web#action=social_media_base.social_media_act_window_kanban"
+                )
+            # Consume state token — single use
+            icp.set_param(_OAUTH_STATE_PARAM, "")
+
             redirect_endpoint_uri = "/facebook/callback"
 
             # Get app credentials from wizard (like LinkedIn and X do)
@@ -94,7 +113,7 @@ class SocialMediaFacebookController(http.Controller):
 
                     # Create wizard lines for each page
                     for page in pages:
-                        _logger.error(
+                        _logger.debug(
                             f"Processing page: {page.get('name')} "
                             f"(ID: {page.get('id')})"
                         )

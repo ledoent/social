@@ -1,10 +1,14 @@
 # Copyright 2025 Kencove (https://www.kencove.com/)
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
+# Facebook Graph API version. Update when Meta deprecates the current version.
+# Check https://developers.facebook.com/docs/graph-api/changelog for deprecation dates.
+FACEBOOK_API_VERSION = "v18.0"
+
 # Facebook API URLs
 _URL_FACEBOOK = "https://www.facebook.com/"
-_URL_GRAPH_FACEBOOK = "https://graph.facebook.com/v18.0"
-_URL_AUTH_FACEBOOK = "https://www.facebook.com/v18.0/dialog/oauth"
+_URL_GRAPH_FACEBOOK = f"https://graph.facebook.com/{FACEBOOK_API_VERSION}"
+_URL_AUTH_FACEBOOK = f"https://www.facebook.com/{FACEBOOK_API_VERSION}/dialog/oauth"
 
 # Facebook API Headers
 _HEADERS_FACEBOOK = {
