@@ -927,4 +927,51 @@ class TestSocialLinkedin(LinkedinMockMixin, TestSocialCommonLinkedin):
         ):
             self.SocialAccountLinkedin.validate_access_token()
             mock_super_failed.assert_called_once()
+
+    # ------------------------------------------------------------------
+    # linkedin_account_urn constrains (Phase 3 addition)
+    # ------------------------------------------------------------------
+
+    def test_valid_linkedin_account_urn_accepted(self):
+        """Valid urn:li:organization:<numeric-id> is accepted without error."""
+        self.SocialAccountLinkedin.write(
+            {"linkedin_account_urn": "urn:li:organization:987654321"}
+        )
+        self.assertEqual(
+            self.SocialAccountLinkedin.linkedin_account_urn,
+            "urn:li:organization:987654321",
+        )
+
+    def test_invalid_urn_missing_organization_raises(self):
+        """URN with wrong entity type raises ValidationError."""
+        with self.assertRaises(ValidationError):
+            self.SocialAccountLinkedin.write(
+                {"linkedin_account_urn": "urn:li:person:123456"}
+            )
+
+    def test_invalid_urn_non_numeric_id_raises(self):
+        """URN with non-numeric organization ID raises ValidationError."""
+        with self.assertRaises(ValidationError):
+            self.SocialAccountLinkedin.write(
+                {"linkedin_account_urn": "urn:li:organization:mycompany"}
+            )
+
+    def test_invalid_urn_wrong_prefix_raises(self):
+        """URN without urn:li: prefix raises ValidationError."""
+        with self.assertRaises(ValidationError):
+            self.SocialAccountLinkedin.write(
+                {"linkedin_account_urn": "li:organization:123456"}
+            )
+
+    def test_invalid_urn_too_short_raises(self):
+        """URN with fewer than 4 colon-separated parts raises ValidationError."""
+        with self.assertRaises(ValidationError):
+            self.SocialAccountLinkedin.write(
+                {"linkedin_account_urn": "urn:li:123456"}
+            )
+
+    def test_empty_urn_allowed(self):
+        """Empty/False linkedin_account_urn is allowed (not yet configured)."""
+        self.SocialAccountLinkedin.write({"linkedin_account_urn": False})
+        self.assertFalse(self.SocialAccountLinkedin.linkedin_account_urn)
             mock_notify_user_failed.assert_called_once()
