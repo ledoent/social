@@ -115,6 +115,7 @@ class SocialAccount(models.Model):
 
     @api.depends_context("uid")
     def _compute_is_property_account(self):
+        """True when the current user is the creator of this account."""
         for account in self:
             account.is_property_account = self.env.user == account.create_uid
 
@@ -177,6 +178,11 @@ class SocialAccount(models.Model):
             account.display_name = account.name or "Unnamed Account"
 
     def _fields_account_url(self):
+        """Return list of (field_name, url_template) pairs for account_url computation.
+
+        Override in platform modules to map media_type → profile URL.
+        Each entry: (field_name_or_media_type, url_string).
+        """
         return []
 
     @api.depends(lambda self: [val[0] for val in self._fields_account_url()])
@@ -287,6 +293,7 @@ class SocialAccount(models.Model):
         return False
 
     def _need_update(self, need_update=True):
+        """Broadcast a bus notification to prompt the UI to refresh account data."""
         self.env["bus.bus"]._sendone(
             self.env.user.partner_id,
             "social_need_update",
