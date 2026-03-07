@@ -12,5 +12,5 @@
         "views/social_post_views.xml",
     ],
     "exclude": ["social"],
-    "auto_install": True,
+    "auto_install": False,
 }
