@@ -23,6 +23,7 @@ class SocialMedia(models.Model):
 
     def open_action_account(self):
         """
-        Show wizard for creating a new social media account
+        Show wizard for creating a new social media account.
+        Override in platform-specific modules (social_media_facebook, etc.).
         """
-        pass
+        return False

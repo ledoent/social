@@ -3,7 +3,6 @@
 
 import base64
 import json
-from datetime import datetime
 
 from dateutil.relativedelta import relativedelta
 
@@ -295,8 +294,8 @@ class SocialAccount(models.Model):
         )
 
     def _get_default_filter_date(self, start_date, end_date, time_date=False, months=1):
-        start = start_date or (datetime.now() - relativedelta(months=months))
-        end = end_date or (datetime.now())
+        start = start_date or (fields.Datetime.now() - relativedelta(months=months))
+        end = end_date or fields.Datetime.now()
         if time_date:
             return _generate_timestamps(date_start=start, date_end=end)
         return start, end
