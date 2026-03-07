@@ -974,4 +974,3 @@ class TestSocialLinkedin(LinkedinMockMixin, TestSocialCommonLinkedin):
         """Empty/False linkedin_account_urn is allowed (not yet configured)."""
         self.SocialAccountLinkedin.write({"linkedin_account_urn": False})
         self.assertFalse(self.SocialAccountLinkedin.linkedin_account_urn)
-            mock_notify_user_failed.assert_called_once()
