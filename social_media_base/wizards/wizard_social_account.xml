@@ -6,51 +6,100 @@
         <field name="name">Associate Social Account</field>
         <field name="model">wizard.social.account</field>
         <field name="arch" type="xml">
-            <form>
-                <field
-                    name="image"
-                    widget="image"
-                    class="oe_avatar"
-                    invisible="context.get('social_update_account', False)"
-                />
-                <div class="oe_title mb24">
-                    <h1>
-                        <field
-                            name="media_id"
-                            invisible="context.get('social_update_account', False)"
-                            readonly="1"
-                            options="{'no_open': True}"
-                        />
+            <form class="o-social-account-wizard">
+                <field name="step" invisible="1" />
+                <!-- media_type is injected by each channel module as
+                     `<field name="media_type" invisible="1"/>` inside the
+                     social_account_data group; declaring it here too would
+                     duplicate the field and break view loading. -->
 
+                <!-- ════════════════════════════════════════════════════
+                     Scene 1 — Pre-flight: branded introduction,
+                     time estimate, permission disclosure, two CTAs.
+                     The body is pre-rendered server-side because brand
+                     color + per-platform bullet lists are awkward in
+                     Odoo's view DSL.
+                ════════════════════════════════════════════════════ -->
+                <field
+                    name="preflight_html"
+                    nolabel="1"
+                    readonly="1"
+                    widget="html"
+                    invisible="step != 'preflight' or context.get('social_update_account', False)"
+                />
+
+                <!-- ════════════════════════════════════════════════════
+                     Existing layout — credentials entry + update flow.
+                     Visible during step == 'credentials' or when an
+                     existing account is being updated.
+                ════════════════════════════════════════════════════ -->
+                <div
+                    invisible="step == 'preflight' and not context.get('social_update_account', False)"
+                >
+                    <field
+                        name="image"
+                        widget="image"
+                        class="oe_avatar"
+                        invisible="context.get('social_update_account', False)"
+                    />
+                    <div class="oe_title mb24">
+                        <h1>
+                            <field
+                                name="media_id"
+                                invisible="context.get('social_update_account', False)"
+                                readonly="1"
+                                options="{'no_open': True}"
+                            />
+
+                            <field
+                                name="account_id"
+                                readonly="1"
+                                options="{'no_open': True}"
+                                invisible="not context.get('social_update_account', False)"
+                            />
+                        </h1>
+                    </div>
+                    <group name="social_account_action">
                         <field
-                            name="account_id"
-                            readonly="1"
-                            options="{'no_open': True}"
+                            name="update_keys"
+                            widget="boolean_toggle"
                             invisible="not context.get('social_update_account', False)"
                         />
-                    </h1>
+                        <field
+                            name="update_token"
+                            widget="boolean_toggle"
+                            invisible="not context.get('social_update_account', False)"
+                        />
+                    </group>
+                    <group name="social_account_data" />
                 </div>
-                <group name="social_account_action">
-                    <field
-                        name="update_keys"
-                        widget="boolean_toggle"
-                        invisible="not context.get('social_update_account', False)"
-                    />
-                    <field
-                        name="update_token"
-                        widget="boolean_toggle"
-                        invisible="not context.get('social_update_account', False)"
-                    />
-                </group>
-                <group name="social_account_data" />
+
                 <footer>
+                    <!-- Pre-flight footer -->
                     <button
-                        name="action_associate_social_account"
-                        string="Associate"
+                        name="action_open_devportal"
+                        string="Show me how to make one"
+                        type="object"
+                        class="btn-secondary"
+                        invisible="step != 'preflight' or context.get('social_update_account', False)"
+                    />
+                    <button
+                        name="action_show_credentials"
+                        string="I have an app →"
                         type="object"
                         class="btn-primary"
                         data-hotkey="q"
-                        invisible="context.get('social_update_account', False)"
+                        invisible="step != 'preflight' or context.get('social_update_account', False)"
+                    />
+
+                    <!-- Credentials / update footer -->
+                    <button
+                        name="action_associate_social_account"
+                        string="Connect"
+                        type="object"
+                        class="btn-primary"
+                        data-hotkey="q"
+                        invisible="step != 'credentials' or context.get('social_update_account', False)"
                     />
                     <button
                         name="update_account"
@@ -60,6 +109,7 @@
                         data-hotkey="q"
                         invisible="not context.get('social_update_account', False)"
                     />
+
                     <button
                         string="Cancel"
                         class="btn-secondary"
