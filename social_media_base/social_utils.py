@@ -12,6 +12,24 @@ from odoo.exceptions import ValidationError
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
 from odoo.tools.date_utils import add
 
+# Single source of truth for per-platform brand color, used by both the
+# pre-flight wizard (Scene 1) and the connection-health kanban (Tier 2).
+# Channel modules can extend this dict at module load time.
+BRAND_COLORS = {
+    "linkedin": "#0A66C2",
+    "facebook": "#1877F2",
+    "mastodon": "#6364FF",
+}
+BRAND_COLOR_DEFAULT = "#8895a4"
+
+
+def get_brand_color(media_type):
+    """Return the brand hex color for a `social.media.media_type` selection
+    value, falling back to a neutral gray for unknown platforms so UI
+    layouts never render with an empty color.
+    """
+    return BRAND_COLORS.get(media_type or "", BRAND_COLOR_DEFAULT)
+
 
 def convert_to_days(seconds=None, miliseconds=None):
     """

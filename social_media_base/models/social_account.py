@@ -3,13 +3,27 @@
 
 import base64
 import json
+import logging
+from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
 
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 from odoo.tools import file_open
 
 from ..social_utils import _generate_timestamps, get_weeks
+
+_logger = logging.getLogger(__name__)
+
+_HEALTH_SEVERITY = {
+    "healthy": 0,
+    "never_connected": 0,
+    "warning": 1,
+    "expired": 2,
+    "disconnected": 2,
+}
+_HEALTH_DEGRADED = ("warning", "expired", "disconnected")
+_FOLLOWER_HISTORY_WINDOW_DAYS = 7
 
 
 class SocialAccount(models.Model):
@@ -384,3 +398,300 @@ class SocialAccount(models.Model):
                 }
             )
         return data_chart
+
+    # ─────────────────────────────────────────────────────────────────────
+    # Tier 2 — Connection Health Board
+    # Per-account health snapshot driven by the daily refresh cron. Channel
+    # modules implement `_refresh_account_health` and the test-post pair;
+    # base provides the cron orchestration + degradation hook (mail.activity).
+    # ─────────────────────────────────────────────────────────────────────
+    health_status = fields.Selection(
+        [
+            ("never_connected", "Never connected"),
+            ("healthy", "Healthy"),
+            ("warning", "Warning"),
+            ("expired", "Expired"),
+            ("disconnected", "Disconnected"),
+        ],
+        default="never_connected",
+        readonly=True,
+        tracking=True,
+        help=(
+            "Current connection health. Computed by the daily refresh cron "
+            "(see `_cron_refresh_all_accounts`). Channel modules override "
+            "`_refresh_account_health` to derive the value from platform "
+            "API state."
+        ),
+    )
+    health_message = fields.Char(
+        readonly=True,
+        translate=False,
+        help="Human-readable label rendered on the kanban status pill.",
+    )
+    health_evaluated_at = fields.Datetime(
+        readonly=True,
+        help="Timestamp of the most recent health-refresh cron run.",
+    )
+    health_severity = fields.Integer(
+        compute="_compute_health_severity",
+        store=True,
+        help=(
+            "0=healthy/never, 1=warning, 2=expired/disconnected. Used as "
+            "the kanban default sort so degraded accounts surface first."
+        ),
+    )
+    media_brand_color = fields.Char(
+        related="media_id.brand_color",
+        store=False,
+        help="Hex brand color for the kanban card's left band.",
+    )
+
+    follower_count = fields.Integer(default=0, readonly=True)
+    follower_count_at = fields.Datetime(
+        readonly=True,
+        help="Timestamp of the most recent follower_count refresh.",
+    )
+    follower_count_prev = fields.Integer(
+        default=0,
+        readonly=True,
+        help=(
+            "Follower count from approximately 7 days ago. Rotated forward "
+            "by the daily cron when the live snapshot ages past the window."
+        ),
+    )
+    follower_count_delta = fields.Integer(
+        compute="_compute_follower_count_delta",
+        store=True,
+        help="follower_count - follower_count_prev. Drives the trend arrow.",
+    )
+
+    last_post_at = fields.Datetime(
+        compute="_compute_last_post",
+        store=True,
+        help="Published date of the most recent published post on this account.",
+    )
+    last_post_id = fields.Many2one(
+        "social.post",
+        compute="_compute_last_post",
+        store=True,
+        help="Most recent published post, for kanban click-through.",
+    )
+
+    @api.depends("health_status")
+    def _compute_health_severity(self):
+        for account in self:
+            account.health_severity = _HEALTH_SEVERITY.get(account.health_status, 0)
+
+    @api.depends("follower_count", "follower_count_prev")
+    def _compute_follower_count_delta(self):
+        for account in self:
+            account.follower_count_delta = (
+                account.follower_count - account.follower_count_prev
+            )
+
+    @api.depends(
+        "post_account_ids.post_id.published_date",
+        "post_account_ids.post_id.state",
+    )
+    def _compute_last_post(self):
+        for account in self:
+            published = account.post_account_ids.post_id.filtered(
+                lambda p: p.state == "published" and p.published_date
+            )
+            latest = published.sorted("published_date", reverse=True)[:1]
+            account.last_post_id = latest
+            account.last_post_at = latest.published_date if latest else False
+
+    # ── Template methods — channel modules override ────────────────────
+    def _refresh_account_health(self):
+        """Refresh follower_count and evaluate health_status for this account.
+
+        Channel modules MUST override. The default implementation marks the
+        account as `never_connected` so an unsupported platform never blocks
+        the cron run for supported ones.
+
+        Side effects: writes follower_count, follower_count_at,
+        health_status, health_message, health_evaluated_at. Must NOT call
+        `_post_health_warning` — the cron handles transition detection.
+        """
+        self.ensure_one()
+        self.write(
+            {
+                "health_status": "never_connected",
+                "health_message": _("No health refresh implemented for %s")
+                % (self.media_id.name or "?"),
+                "health_evaluated_at": fields.Datetime.now(),
+            }
+        )
+
+    def _test_post_and_delete(self, message=None, delay_seconds=60):
+        """Publish a test post to the live account, then schedule its
+        deletion after `delay_seconds`. Returns the platform post id.
+
+        Channel modules MUST override. Base raises NotImplementedError so
+        misuse fails loudly rather than silently no-op'ing.
+
+        Default copy is read from the `social_media_base.test_post_message`
+        system parameter so admins can edit it without code changes.
+        """
+        raise NotImplementedError(
+            _("Channel module must implement _test_post_and_delete()")
+        )
+
+    def _delete_test_post(self, platform_post_id):
+        """Delete a previously-published test post by platform id.
+
+        Channel modules MUST override. Called by the one-shot delete cron
+        scheduled inside `_test_post_and_delete`.
+        """
+        raise NotImplementedError(
+            _("Channel module must implement _delete_test_post()")
+        )
+
+    def _post_health_warning(self, prior_status):
+        """Hook fired by the cron when health_status degrades.
+
+        Default: schedules a `mail.activity` todo on `create_uid` (falling
+        back to the current user) summarizing the change. Downstream and
+        channel modules may override to add platform-specific recovery
+        URLs, external notifications (ntfy/Slack), or escalation logic.
+
+        `prior_status` is supplied so overrides can distinguish first-time
+        degradation from a continued one if they want.
+        """
+        self.ensure_one()
+        assignee = self.create_uid or self.env.user
+        summary = _("Reconnect %s") % (self.media_id.name or _("social account"))
+        note = _(
+            "Account: %(name)s\nStatus: %(now)s (was %(prev)s)\nMessage: %(msg)s"
+        ) % {
+            "name": self.name or "?",
+            "now": self.health_status,
+            "prev": prior_status,
+            "msg": self.health_message or "",
+        }
+        self.activity_schedule(
+            "mail.mail_activity_data_todo",
+            user_id=assignee.id,
+            summary=summary,
+            note=note,
+            date_deadline=fields.Date.context_today(self),
+        )
+
+    # ── Cron orchestrator ───────────────────────────────────────────────
+    @api.model
+    def _cron_refresh_all_accounts(self):
+        """Iterate active accounts; rotate follower history; refresh health;
+        fire warning hooks on degradation. Errors per-account are swallowed
+        and logged so one bad account doesn't block the rest of the run.
+
+        Wired to `cron_refresh_account_health` in
+        `data/ir_cron_data.xml` (daily, 06:00 UTC).
+        """
+        accounts = self.search([("active", "=", True)])
+        now = fields.Datetime.now()
+        window = now - timedelta(days=_FOLLOWER_HISTORY_WINDOW_DAYS)
+        for account in accounts:
+            prior = account.health_status
+            # Rotate the follower history slot before refresh so the
+            # delta arrow reflects week-over-week movement, not
+            # measurement noise from the same day.
+            if account.follower_count_at and account.follower_count_at <= window:
+                account.follower_count_prev = account.follower_count
+            try:
+                account._refresh_account_health()
+            except Exception as exc:  # noqa: BLE001 — log + continue
+                _logger.exception(
+                    "Health refresh failed for account %s (%s): %s",
+                    account.id,
+                    account.media_id.media_type,
+                    exc,
+                )
+                account.write(
+                    {
+                        "health_status": "disconnected",
+                        "health_message": _("Refresh failed: %s") % str(exc)[:120],
+                        "health_evaluated_at": now,
+                    }
+                )
+            if (
+                account.health_status in _HEALTH_DEGRADED
+                and prior != account.health_status
+            ):
+                try:
+                    account._post_health_warning(prior)
+                except Exception as exc:  # noqa: BLE001 — log + continue
+                    _logger.exception(
+                        "Health warning post failed for account %s: %s",
+                        account.id,
+                        exc,
+                    )
+
+    # ── Action methods — kanban button bindings ─────────────────────────
+    def action_reconnect(self):
+        """Re-open the connect wizard pre-filled with this account.
+
+        The wizard's `social_update_account` context flag tells Scene 1 to
+        skip the pre-flight and land directly on the credentials form.
+        """
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "wizard.social.account",
+            "view_mode": "form",
+            "target": "new",
+            "context": {
+                "default_media_id": self.media_id.id,
+                "default_account_id": self.id,
+                "social_update_account": True,
+            },
+        }
+
+    def action_test_post(self):
+        """Publish a self-deleting test post to prove the connection works.
+
+        Guarded on `health_status == healthy` so users can't post-spam a
+        degraded account. Channel modules implement the actual post +
+        schedule-delete path via `_test_post_and_delete`.
+        """
+        self.ensure_one()
+        if self.health_status != "healthy":
+            from odoo.exceptions import UserError
+
+            raise UserError(
+                _(
+                    "Account must be Healthy before sending a test post "
+                    "(current status: %s)."
+                )
+                % self.health_status
+            )
+        self._test_post_and_delete()
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": _("Test posted"),
+                "message": _("Will auto-delete in about 60 seconds."),
+                "type": "success",
+                "sticky": False,
+            },
+        }
+
+    def action_disconnect(self):
+        """Soft-disconnect this account — archives it and flags the status.
+
+        Tokens are intentionally NOT cleared here so a later reconnect
+        can re-use them via the wizard's update flow if the user changes
+        their mind. Hard credential rotation should go through the
+        reconnect wizard.
+        """
+        self.ensure_one()
+        self.write(
+            {
+                "active": False,
+                "health_status": "disconnected",
+                "health_message": _("Disconnected by user"),
+                "health_evaluated_at": fields.Datetime.now(),
+            }
+        )
+        return True

@@ -5,11 +5,14 @@ from markupsafe import Markup, escape
 
 from odoo import _, api, fields, models
 
+from ..social_utils import get_brand_color
+
 # Pre-flight copy per platform. Channel modules can extend `_preflight_copy()`
 # to swap any value or to add a new platform without touching the base.
+# Brand color is sourced separately from social_utils.BRAND_COLORS so the
+# wizard and the social.account kanban stay in sync from a single dict.
 _PREFLIGHT = {
     "linkedin": {
-        "brand_color": "#0A66C2",
         "logo": "/social_media_base/static/src/img/linkedin-mark.svg",
         "headline": "Connect LinkedIn",
         "subhead": "Post drafts and scheduled posts to your organization page.",
@@ -30,7 +33,6 @@ _PREFLIGHT = {
         "devportal_url": "https://www.linkedin.com/developers/apps/new",
     },
     "facebook": {
-        "brand_color": "#1877F2",
         "logo": "/social_media_base/static/src/img/facebook-mark.svg",
         "headline": "Connect Facebook",
         "subhead": "Post drafts and scheduled posts to your Facebook page.",
@@ -99,10 +101,12 @@ class WizardSocialAccount(models.TransientModel):
 
         Channel modules override this to swap copy. Falls back to the
         LinkedIn block when media_type is unknown so the layout never
-        breaks for an unsupported channel.
+        breaks for an unsupported channel. Brand color is injected from
+        social_utils so wizard and kanban share one source of truth.
         """
         self.ensure_one()
-        return _PREFLIGHT.get(self.media_type or "", _PREFLIGHT["linkedin"])
+        base = _PREFLIGHT.get(self.media_type or "", _PREFLIGHT["linkedin"])
+        return {**base, "brand_color": get_brand_color(self.media_type)}
 
     @api.depends("media_type")
     def _compute_preflight_html(self):
