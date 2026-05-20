@@ -1,0 +1,127 @@
+// Scene 1 — pre-flight wizard styling.
+// Brand-aware introduction panel for `wizard.social.account`. The brand
+// color is injected inline via `t-attf-style` on the band so each
+// platform module can keep its hex value with the rest of its copy.
+
+.o-social-account-wizard {
+    // Drop default form padding around the pre-flight so the brand band
+    // can run edge-to-edge. The credentials step keeps its native layout.
+    .o-social-preflight {
+        margin: -16px -16px 16px -16px;
+    }
+}
+
+.o-social-preflight-band {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 32px;
+    color: #fff;
+    border-radius: 4px 4px 0 0;
+}
+
+.o-social-preflight-logo {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+    flex-shrink: 0;
+}
+
+.o-social-preflight-heading {
+    h1 {
+        color: #fff;
+        margin: 0 0 4px;
+        font-size: 24px;
+        font-weight: 600;
+    }
+    p {
+        color: rgba(255, 255, 255, 0.88);
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.4;
+    }
+}
+
+.o-social-preflight-body {
+    padding: 24px 32px 8px;
+}
+
+.o-social-preflight-time {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    color: #5a6878;
+    font-size: 14px;
+
+    .fa-clock-o {
+        font-size: 18px;
+        color: #8895a4;
+    }
+}
+
+.o-social-preflight-disclosure {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+
+    @media (max-width: 720px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.o-social-preflight-card {
+    padding: 18px 20px;
+    border-radius: 8px;
+    border: 1px solid #e3e8ee;
+    background: #fafbfc;
+
+    h3 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #5a6878;
+    }
+}
+
+.o-social-preflight-card--grant {
+    border-color: #d4ead8;
+    background: #f4fbf6;
+
+    h3 {
+        color: #1e6b3a;
+    }
+    .o-social-preflight-list li::marker {
+        color: #2c9d56;
+    }
+}
+
+.o-social-preflight-card--exclude {
+    border-color: #eadcd9;
+    background: #fbf6f5;
+
+    h3 {
+        color: #7a3d36;
+    }
+    .o-social-preflight-list li::marker {
+        color: #b35a4f;
+    }
+}
+
+.o-social-preflight-list {
+    margin: 0;
+    padding-left: 22px;
+
+    li {
+        line-height: 1.5;
+        margin-bottom: 4px;
+        color: #2c3a47;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+}
