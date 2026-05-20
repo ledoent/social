@@ -11,7 +11,6 @@ from odoo.addons.social_media_base.tests.test_social_common import (
 
 
 class TestSocialMediaCalendar(TestSocialMediaBaseCommon):
-
     # ------------------------------------------------------------------
     # color computation
     # ------------------------------------------------------------------

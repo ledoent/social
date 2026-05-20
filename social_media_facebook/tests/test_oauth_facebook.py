@@ -39,7 +39,8 @@ class TestFacebookChartStats(TestSocialCommonFacebook, TransactionCase):
         )
         if result:
             self.assertEqual(
-                result[0]["impressionCount"], self.SocialAccountFacebook.impression_count
+                result[0]["impressionCount"],
+                self.SocialAccountFacebook.impression_count,
             )
 
     def test_chart_stats_with_zero_metrics(self):
@@ -67,9 +68,7 @@ class TestFacebookOAuthCallback(HttpCase, TestSocialCommonFacebook):
         self.authenticate("admin", "admin")
         # Plant a valid state token
         self.state = secrets.token_urlsafe(32)
-        self.env["ir.config_parameter"].sudo().set_param(
-            _OAUTH_STATE_PARAM, self.state
-        )
+        self.env["ir.config_parameter"].sudo().set_param(_OAUTH_STATE_PARAM, self.state)
         # Create a wizard with FB credentials so the callback can find them
         self.env["wizard.social.account"].sudo().create(
             {
@@ -105,9 +104,7 @@ class TestFacebookOAuthCallback(HttpCase, TestSocialCommonFacebook):
         self.assertIn("/web", resp.url)
         # State should NOT have been consumed — wrong token
         stored = (
-            self.env["ir.config_parameter"]
-            .sudo()
-            .get_param(_OAUTH_STATE_PARAM, "")
+            self.env["ir.config_parameter"].sudo().get_param(_OAUTH_STATE_PARAM, "")
         )
         self.assertEqual(stored, self.state)
 
@@ -120,9 +117,7 @@ class TestFacebookOAuthCallback(HttpCase, TestSocialCommonFacebook):
                 return_value={},  # not a dict with access_token → falls through
             ),
         ):
-            self.url_open(
-                f"/facebook/callback?code=AUTH_CODE&state={self.state}"
-            )
+            self.url_open(f"/facebook/callback?code=AUTH_CODE&state={self.state}")
         stored = (
             self.env["ir.config_parameter"]
             .sudo()
@@ -156,13 +151,17 @@ class TestFacebookStateToken(TestSocialCommonFacebook, TransactionCase):
 
     def test_wizard_generates_state_token(self):
         """action_get_facebook_auth_link stores a non-empty state token."""
-        wizard = self.env["wizard.social.account"].sudo().create(
-            {
-                "media_id": self.media_facebook_id.id,
-                "media_type": "facebook",
-                "facebook_app_id": "app_id_123",
-                "facebook_app_secret": "secret_xyz",
-            }
+        wizard = (
+            self.env["wizard.social.account"]
+            .sudo()
+            .create(
+                {
+                    "media_id": self.media_facebook_id.id,
+                    "media_type": "facebook",
+                    "facebook_app_id": "app_id_123",
+                    "facebook_app_secret": "secret_xyz",
+                }
+            )
         )
         with patch.object(
             type(wizard),
@@ -174,9 +173,7 @@ class TestFacebookStateToken(TestSocialCommonFacebook, TransactionCase):
             except Exception:
                 pass  # redirect may raise in test context
         stored = (
-            self.env["ir.config_parameter"]
-            .sudo()
-            .get_param(_OAUTH_STATE_PARAM, "")
+            self.env["ir.config_parameter"].sudo().get_param(_OAUTH_STATE_PARAM, "")
         )
         # State token should have been written (may already be consumed)
         # Just verify the mechanism exists (no AttributeError)

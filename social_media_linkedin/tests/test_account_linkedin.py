@@ -966,9 +966,7 @@ class TestSocialLinkedin(LinkedinMockMixin, TestSocialCommonLinkedin):
     def test_invalid_urn_too_short_raises(self):
         """URN with fewer than 4 colon-separated parts raises ValidationError."""
         with self.assertRaises(ValidationError):
-            self.SocialAccountLinkedin.write(
-                {"linkedin_account_urn": "urn:li:123456"}
-            )
+            self.SocialAccountLinkedin.write({"linkedin_account_urn": "urn:li:123456"})
 
     def test_empty_urn_allowed(self):
         """Empty/False linkedin_account_urn is allowed (not yet configured)."""
