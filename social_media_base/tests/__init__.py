@@ -7,3 +7,4 @@ from . import test_media_account_base
 from . import test_social_account_base
 from . import test_social_post_base
 from . import test_health
+from . import test_status_board

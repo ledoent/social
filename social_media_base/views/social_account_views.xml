@@ -77,16 +77,171 @@
                 <field name="name" />
                 <field name="username" />
                 <field name="media_id" />
+                <field name="health_status" />
+                <field name="follower_count" />
                 <field name="create_uid" />
                 <field name="create_date" />
             </list>
         </field>
     </record>
 
+    <!--
+        Tier 2 — Connection Health Board.
+        Status-card kanban replacing the bare list as the default view.
+        Cards surface health pill, follower count + 7d delta arrow, last
+        post timestamp, and three actions (Reconnect / Test post /
+        Disconnect). Degraded accounts (severity desc) sort to the top so
+        operational issues surface first.
+    -->
+    <record model="ir.ui.view" id="social_account_kanban_view">
+        <field name="name">social.account.kanban</field>
+        <field name="model">social.account</field>
+        <field name="arch" type="xml">
+            <kanban
+                class="o-social-status-board"
+                create="0"
+                default_order="health_severity desc, name asc"
+            >
+                <field name="id" />
+                <field name="name" />
+                <field name="media_id" />
+                <field name="account_url" />
+                <field name="health_status" />
+                <field name="health_message" />
+                <field name="health_severity" />
+                <field name="media_brand_color" />
+                <field name="follower_count" />
+                <field name="follower_count_delta_7d" />
+                <field name="last_post_at" />
+                <field name="last_post_id" />
+                <field name="avatar_128" />
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="o-social-status-card oe_kanban_global_click">
+                            <div
+                                class="o-social-status-card__band"
+                                t-attf-style="background: #{record.media_brand_color.raw_value or '#8895a4'};"
+                            />
+                            <div class="o-social-status-card__body">
+                                <div class="o-social-status-card__header">
+                                    <img
+                                        t-att-src="kanban_image('social.account','avatar_128',record.id.raw_value)"
+                                        class="o-social-status-card__avatar"
+                                        alt=""
+                                    />
+                                    <div class="o-social-status-card__title">
+                                        <strong>
+                                            <field name="name" />
+                                        </strong>
+                                        <small class="text-muted">
+                                            <field name="account_url" />
+                                        </small>
+                                    </div>
+                                </div>
+                                <div
+                                    t-attf-class="o-social-status-pill o-social-status-pill--#{record.health_status.raw_value or 'never_connected'}"
+                                >
+                                    <span class="o-social-status-pill__dot" />
+                                    <field name="health_message" />
+                                </div>
+                                <div class="o-social-status-card__metrics">
+                                    <div>
+                                        <strong>
+                                            <field name="follower_count" />
+                                        </strong>
+                                        <span class="text-muted"> followers</span>
+                                        <t
+                                            t-if="record.follower_count_delta_7d.raw_value &gt; 0"
+                                        >
+                                            <span class="o-social-status-delta--up">
+                                                ↑ +<field
+                                                name="follower_count_delta_7d"
+                                            /> 7d
+                                            </span>
+                                        </t>
+                                        <t
+                                            t-elif="record.follower_count_delta_7d.raw_value &lt; 0"
+                                        >
+                                            <span class="o-social-status-delta--down">
+                                                ↓ <field
+                                                name="follower_count_delta_7d"
+                                            /> 7d
+                                            </span>
+                                        </t>
+                                    </div>
+                                    <div
+                                        t-if="record.last_post_at.raw_value"
+                                        class="o-social-status-card__lastpost"
+                                    >
+                                        Last post:
+                                        <field name="last_post_at" widget="relative" />
+                                    </div>
+                                </div>
+                                <div class="o-social-status-card__actions">
+                                    <button
+                                        name="action_reconnect"
+                                        type="object"
+                                        class="btn btn-sm btn-secondary"
+                                    >Reconnect</button>
+                                    <button
+                                        name="action_test_post"
+                                        type="object"
+                                        class="btn btn-sm btn-secondary"
+                                        t-att-disabled="record.health_status.raw_value != 'healthy' ? 'disabled' : null"
+                                    >Test post</button>
+                                    <button
+                                        name="action_disconnect"
+                                        type="object"
+                                        class="btn btn-sm btn-outline-danger"
+                                    >Disconnect</button>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record model="ir.ui.view" id="social_account_search_view">
+        <field name="name">social.account.search</field>
+        <field name="model">social.account</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name" />
+                <field name="media_id" />
+                <filter
+                    string="Degraded"
+                    name="filter_degraded"
+                    domain="[('health_status','in',['warning','rate_limited','expired','disconnected'])]"
+                />
+                <filter
+                    string="Healthy"
+                    name="filter_healthy"
+                    domain="[('health_status','=','healthy')]"
+                />
+                <separator />
+                <group expand="0" string="Group by">
+                    <filter
+                        string="Platform"
+                        name="group_media"
+                        context="{'group_by': 'media_id'}"
+                    />
+                    <filter
+                        string="Status"
+                        name="group_status"
+                        context="{'group_by': 'health_status'}"
+                    />
+                </group>
+            </search>
+        </field>
+    </record>
+
     <record model="ir.actions.act_window" id="social_account_act_window_tree">
         <field name="name">Accounts</field>
         <field name="res_model">social.account</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="social_account_search_view" />
         <field name="domain">[]</field>
         <field name="context">{}</field>
     </record>
