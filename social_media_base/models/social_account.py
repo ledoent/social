@@ -19,11 +19,16 @@ _HEALTH_SEVERITY = {
     "healthy": 0,
     "never_connected": 0,
     "warning": 1,
+    "rate_limited": 1,
     "expired": 2,
     "disconnected": 2,
 }
-_HEALTH_DEGRADED = ("warning", "expired", "disconnected")
-_FOLLOWER_HISTORY_WINDOW_DAYS = 7
+_HEALTH_DEGRADED = ("warning", "rate_limited", "expired", "disconnected")
+
+# How many daily snapshots of follower_count to retain in
+# follower_history. 90 covers ~3 months of trend without ballooning the
+# JSON column. Older entries are dropped on each cron run.
+_FOLLOWER_HISTORY_MAX_ENTRIES = 90
 
 
 class SocialAccount(models.Model):
@@ -410,6 +415,7 @@ class SocialAccount(models.Model):
             ("never_connected", "Never connected"),
             ("healthy", "Healthy"),
             ("warning", "Warning"),
+            ("rate_limited", "Rate limited"),
             ("expired", "Expired"),
             ("disconnected", "Disconnected"),
         ],
@@ -420,7 +426,9 @@ class SocialAccount(models.Model):
             "Current connection health. Computed by the daily refresh cron "
             "(see `_cron_refresh_all_accounts`). Channel modules override "
             "`_refresh_account_health` to derive the value from platform "
-            "API state."
+            "API state. `rate_limited` is a transient degraded state — the "
+            "credentials are valid but the platform is throttling; recovery "
+            "is automatic on the next successful refresh."
         ),
     )
     health_message = fields.Char(
@@ -436,8 +444,9 @@ class SocialAccount(models.Model):
         compute="_compute_health_severity",
         store=True,
         help=(
-            "0=healthy/never, 1=warning, 2=expired/disconnected. Used as "
-            "the kanban default sort so degraded accounts surface first."
+            "0=healthy/never, 1=warning/rate_limited, "
+            "2=expired/disconnected. Used as the kanban default sort so "
+            "degraded accounts surface first."
         ),
     )
     media_brand_color = fields.Char(
@@ -451,18 +460,31 @@ class SocialAccount(models.Model):
         readonly=True,
         help="Timestamp of the most recent follower_count refresh.",
     )
-    follower_count_prev = fields.Integer(
-        default=0,
+    follower_history = fields.Json(
+        default=list,
         readonly=True,
         help=(
-            "Follower count from approximately 7 days ago. Rotated forward "
-            "by the daily cron when the live snapshot ages past the window."
+            "Append-only daily snapshots of follower_count, capped at "
+            f"{_FOLLOWER_HISTORY_MAX_ENTRIES} entries (~3 months). Schema: "
+            '`[{"d": "YYYY-MM-DD", "n": <int>}, ...]` oldest-first. '
+            "Powers the 7d/30d delta arrows and any future sparkline."
         ),
     )
-    follower_count_delta = fields.Integer(
-        compute="_compute_follower_count_delta",
+    follower_count_delta_7d = fields.Integer(
+        compute="_compute_follower_count_deltas",
         store=True,
-        help="follower_count - follower_count_prev. Drives the trend arrow.",
+        help=(
+            "follower_count minus the snapshot from ~7 days ago. Zero when "
+            "no historical entry old enough exists yet."
+        ),
+    )
+    follower_count_delta_30d = fields.Integer(
+        compute="_compute_follower_count_deltas",
+        store=True,
+        help=(
+            "follower_count minus the snapshot from ~30 days ago. Zero "
+            "when no historical entry old enough exists yet."
+        ),
     )
 
     last_post_at = fields.Datetime(
@@ -482,12 +504,31 @@ class SocialAccount(models.Model):
         for account in self:
             account.health_severity = _HEALTH_SEVERITY.get(account.health_status, 0)
 
-    @api.depends("follower_count", "follower_count_prev")
-    def _compute_follower_count_delta(self):
+    @api.depends("follower_count", "follower_history")
+    def _compute_follower_count_deltas(self):
         for account in self:
-            account.follower_count_delta = (
-                account.follower_count - account.follower_count_prev
-            )
+            account.follower_count_delta_7d = account._delta_from_history(7)
+            account.follower_count_delta_30d = account._delta_from_history(30)
+
+    def _delta_from_history(self, days_ago):
+        """Return follower_count minus the snapshot from `days_ago` days
+        back. Picks the most recent snapshot at or before the target date
+        (so a sparse history still produces a meaningful delta). Returns
+        0 when no entry old enough exists yet.
+        """
+        self.ensure_one()
+        history = self.follower_history or []
+        if not history:
+            return 0
+        target = (
+            fields.Date.context_today(self) - timedelta(days=days_ago)
+        ).isoformat()
+        candidates = [h for h in history if h.get("d", "") <= target]
+        if not candidates:
+            return 0
+        # history is oldest-first; the last candidate is the closest at or
+        # before the target date.
+        return self.follower_count - int(candidates[-1].get("n", 0))
 
     @api.depends(
         "post_account_ids.post_id.published_date",
@@ -590,14 +631,8 @@ class SocialAccount(models.Model):
         """
         accounts = self.search([("active", "=", True)])
         now = fields.Datetime.now()
-        window = now - timedelta(days=_FOLLOWER_HISTORY_WINDOW_DAYS)
         for account in accounts:
             prior = account.health_status
-            # Rotate the follower history slot before refresh so the
-            # delta arrow reflects week-over-week movement, not
-            # measurement noise from the same day.
-            if account.follower_count_at and account.follower_count_at <= window:
-                account.follower_count_prev = account.follower_count
             try:
                 account._refresh_account_health()
             except Exception as exc:  # noqa: BLE001 — log + continue
@@ -614,6 +649,12 @@ class SocialAccount(models.Model):
                         "health_evaluated_at": now,
                     }
                 )
+            # Append a follower_history snapshot after refresh so the
+            # JSON column always reflects the live count. Same-day calls
+            # overwrite the latest entry rather than duplicating it; the
+            # series is capped at _FOLLOWER_HISTORY_MAX_ENTRIES so the
+            # JSON column doesn't grow unbounded.
+            account._append_follower_snapshot()
             if (
                 account.health_status in _HEALTH_DEGRADED
                 and prior != account.health_status
@@ -626,6 +667,23 @@ class SocialAccount(models.Model):
                         account.id,
                         exc,
                     )
+
+    def _append_follower_snapshot(self):
+        """Append today's follower_count to follower_history, overwriting
+        an entry from the same date if one already exists. Trims older
+        entries past _FOLLOWER_HISTORY_MAX_ENTRIES so the JSON column
+        stays bounded.
+        """
+        self.ensure_one()
+        today = fields.Date.context_today(self).isoformat()
+        history = list(self.follower_history or [])
+        if history and history[-1].get("d") == today:
+            history[-1] = {"d": today, "n": int(self.follower_count or 0)}
+        else:
+            history.append({"d": today, "n": int(self.follower_count or 0)})
+        if len(history) > _FOLLOWER_HISTORY_MAX_ENTRIES:
+            history = history[-_FOLLOWER_HISTORY_MAX_ENTRIES:]
+        self.follower_history = history
 
     # ── Action methods — kanban button bindings ─────────────────────────
     def action_reconnect(self):

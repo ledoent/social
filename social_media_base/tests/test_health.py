@@ -28,18 +28,54 @@ class TestConnectionHealth(TestSocialMediaBaseCommon):
             ("healthy", 0),
             ("never_connected", 0),
             ("warning", 1),
+            ("rate_limited", 1),
             ("expired", 2),
             ("disconnected", 2),
         ]:
             a.health_status = status
             self.assertEqual(a.health_severity, expected, f"severity for {status}")
 
-    def test_follower_delta_compute(self):
+    def test_follower_delta_7d_from_history(self):
         a = self.social_account_id
-        a.write({"follower_count": 1000, "follower_count_prev": 900})
-        self.assertEqual(a.follower_count_delta, 100)
-        a.write({"follower_count": 850, "follower_count_prev": 900})
-        self.assertEqual(a.follower_count_delta, -50)
+        today = fields.Date.context_today(a)
+        a.write(
+            {
+                "follower_count": 1247,
+                "follower_history": [
+                    {"d": (today - timedelta(days=30)).isoformat(), "n": 1100},
+                    {"d": (today - timedelta(days=7)).isoformat(), "n": 1244},
+                    {"d": (today - timedelta(days=1)).isoformat(), "n": 1246},
+                ],
+            }
+        )
+        a.invalidate_recordset()
+        self.assertEqual(a.follower_count_delta_7d, 3)
+        self.assertEqual(a.follower_count_delta_30d, 147)
+
+    def test_follower_delta_falls_back_to_closest_older(self):
+        # Sparse history (no entry exactly at 7 days ago) — should pick
+        # the most recent snapshot at or before the target date.
+        a = self.social_account_id
+        today = fields.Date.context_today(a)
+        a.write(
+            {
+                "follower_count": 500,
+                "follower_history": [
+                    {"d": (today - timedelta(days=14)).isoformat(), "n": 400},
+                    {"d": (today - timedelta(days=2)).isoformat(), "n": 490},
+                ],
+            }
+        )
+        a.invalidate_recordset()
+        # 7d window: closest at-or-before is the 14d-ago entry (400)
+        self.assertEqual(a.follower_count_delta_7d, 100)
+
+    def test_follower_delta_zero_when_no_history(self):
+        a = self.social_account_id
+        a.write({"follower_count": 1000, "follower_history": []})
+        a.invalidate_recordset()
+        self.assertEqual(a.follower_count_delta_7d, 0)
+        self.assertEqual(a.follower_count_delta_30d, 0)
 
     def test_last_post_compute_picks_latest_published(self):
         a = self.social_account_id
@@ -90,23 +126,61 @@ class TestConnectionHealth(TestSocialMediaBaseCommon):
         self.assertIn(self.social_account_id.id, called_ids)
         self.assertIn(b.id, called_ids)
 
-    def test_cron_rotates_follower_history_after_window(self):
+    def test_cron_appends_snapshot_to_history(self):
         a = self.social_account_id
+        today = fields.Date.context_today(a)
         a.write(
             {
                 "follower_count": 1234,
-                "follower_count_prev": 1000,
-                "follower_count_at": fields.Datetime.now() - timedelta(days=8),
+                "follower_history": [
+                    {"d": (today - timedelta(days=2)).isoformat(), "n": 1200},
+                ],
             }
         )
         with patch(PATCH_ACCOUNT.format("_refresh_account_health"), autospec=True):
             self.SocialAccount._cron_refresh_all_accounts()
         a.invalidate_recordset()
-        self.assertEqual(
-            a.follower_count_prev,
-            1234,
-            "8-day-old snapshot should rotate the live value into prev",
+        history = a.follower_history or []
+        self.assertEqual(len(history), 2, "cron should append today's snapshot")
+        self.assertEqual(history[-1]["d"], today.isoformat())
+        self.assertEqual(history[-1]["n"], 1234)
+
+    def test_cron_overwrites_same_day_snapshot(self):
+        a = self.social_account_id
+        today = fields.Date.context_today(a)
+        a.write(
+            {
+                "follower_count": 9999,
+                "follower_history": [{"d": today.isoformat(), "n": 5000}],
+            }
         )
+        with patch(PATCH_ACCOUNT.format("_refresh_account_health"), autospec=True):
+            self.SocialAccount._cron_refresh_all_accounts()
+        a.invalidate_recordset()
+        history = a.follower_history or []
+        self.assertEqual(len(history), 1, "same-day call must not duplicate")
+        self.assertEqual(history[0]["n"], 9999, "same-day call must overwrite")
+
+    def test_cron_caps_history_length(self):
+        from ..models.social_account import _FOLLOWER_HISTORY_MAX_ENTRIES
+
+        a = self.social_account_id
+        today = fields.Date.context_today(a)
+        # Seed history past the cap with one entry per day
+        a.follower_history = [
+            {"d": (today - timedelta(days=i + 1)).isoformat(), "n": 100 + i}
+            for i in range(_FOLLOWER_HISTORY_MAX_ENTRIES + 5)
+        ][::-1]
+        a.follower_count = 999
+        with patch(PATCH_ACCOUNT.format("_refresh_account_health"), autospec=True):
+            self.SocialAccount._cron_refresh_all_accounts()
+        a.invalidate_recordset()
+        self.assertEqual(
+            len(a.follower_history),
+            _FOLLOWER_HISTORY_MAX_ENTRIES,
+            "history must be trimmed at the cap after appending",
+        )
+        self.assertEqual(a.follower_history[-1]["n"], 999)
 
     def test_cron_swallows_per_account_errors(self):
         b = self.SocialAccount.create(
