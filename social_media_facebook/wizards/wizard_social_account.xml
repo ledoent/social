@@ -14,14 +14,14 @@
                 <field name="update_keys" invisible="1" />
                 <field
                     name="facebook_app_id"
-                    required="media_type == 'facebook'"
-                    invisible="media_type != 'facebook'"
+                    required="step == 'credentials' and media_type == 'facebook'"
+                    invisible="step != 'credentials' or media_type != 'facebook'"
                 />
                 <field
                     name="facebook_app_secret"
                     password="True"
-                    required="media_type == 'facebook'"
-                    invisible="media_type != 'facebook'"
+                    required="step == 'credentials' and media_type == 'facebook'"
+                    invisible="step != 'credentials' or media_type != 'facebook'"
                 />
             </xpath>
         </field>
