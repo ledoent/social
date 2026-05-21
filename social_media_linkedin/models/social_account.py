@@ -24,6 +24,7 @@ from odoo.addons.social_media_base.social_utils import (
 from ..social_linkedin_utils import (
     _FIELDS_CAMPAIGN_LINKEDIN,
     _FIELDS_STATISTIC_LINKEDIN,
+    _SCOPE_LINKEDIN_DEFAULT,
     _URL_AUTH_V2_LINKEDIN,
     _URL_LINKEDIN,
     _URL_REST_LINKEDIN,
@@ -45,6 +46,22 @@ class SocialAccount(models.Model):
     linkedin_client_id = fields.Char(string="Client ID")
     linkedin_secret = fields.Char(
         string="Client Secret",
+    )
+    linkedin_scopes = fields.Char(
+        string="OAuth Scopes",
+        default=lambda self: " ".join(_SCOPE_LINKEDIN_DEFAULT),
+        help=(
+            "Space-separated LinkedIn OAuth scopes to request on authorize. "
+            "Defaults cover Sign In with LinkedIn + Marketing Developer "
+            "Platform (org-page posting): profile, email, "
+            "r_organization_social, w_organization_social, "
+            "r_organization_admin. Add more only when the corresponding "
+            "LinkedIn Product is approved on your dev app — otherwise the "
+            "OAuth request will be rejected entirely. Common extras: "
+            "r_ads / rw_ads / r_ads_reporting (Advertising API), "
+            "rw_organization_admin / w_member_social (extended MDP), "
+            "r_basicprofile / r_1st_connections_size (legacy)."
+        ),
     )
 
     @api.model
@@ -569,6 +586,13 @@ class SocialAccount(models.Model):
                         "expire_access_token_date": expire_token,
                         "refresh_token_expires_in": expire_refresh_token,
                     }
+                    # Persist the scope set chosen at OAuth-authorize time
+                    # so subsequent re-auths request the same set (avoids
+                    # surprising the user with a different consent screen).
+                    if wizard_account_id and wizard_account_id.linkedin_scopes:
+                        values_data["linkedin_scopes"] = (
+                            wizard_account_id.linkedin_scopes
+                        )
                     if not social_account:
                         linkedin_account_urn = (
                             f"{_URN_ORGANIZATION_LINKEDIN}{organization.get('id')}"

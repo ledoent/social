@@ -25,6 +25,12 @@
                     required="step == 'credentials' and (media_type == 'linkedin' or (update_keys and context.get('social_update_account', False)))"
                     invisible="step != 'credentials' or media_type != 'linkedin' or (not update_keys and context.get('social_update_account', False))"
                 />
+                <field
+                    name="linkedin_scopes"
+                    readonly="0"
+                    invisible="step != 'credentials' or media_type != 'linkedin' or context.get('social_update_account', False)"
+                    placeholder="profile email r_organization_social w_organization_social r_organization_admin"
+                />
             </xpath>
         </field>
     </record>

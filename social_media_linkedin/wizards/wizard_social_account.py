@@ -11,7 +11,7 @@ from odoo import fields, models
 from odoo.tools import hmac
 
 from ..social_linkedin_utils import (
-    _SCOPE_LINKEDIN,
+    _SCOPE_LINKEDIN_DEFAULT,
     _URL_AUTH_V2_LINKEDIN,
 )
 
@@ -21,6 +21,17 @@ class WizardSocialAccount(models.TransientModel):
 
     linkedin_client = fields.Char(string="Client ID")
     linkedin_secret = fields.Char(string="Client Secret")
+    linkedin_scopes = fields.Char(
+        string="OAuth Scopes",
+        default=lambda self: " ".join(_SCOPE_LINKEDIN_DEFAULT),
+        help=(
+            "Space-separated LinkedIn OAuth scopes to request. Defaults "
+            "cover Sign In + Marketing Developer Platform org-posting. "
+            "Add more only when the matching LinkedIn Product is approved "
+            "on your dev app — extra unapproved scopes cause OAuth to "
+            "fail with 'Bummer, something went wrong'."
+        ),
+    )
     csrf_state_token = fields.Char()
 
     def _get_url_redirect(self):
@@ -43,6 +54,27 @@ class WizardSocialAccount(models.TransientModel):
         else:
             return super()._get_csrf_state_token()
 
+    def _get_linkedin_scopes(self):
+        """Return the scope string requested in the OAuth authorize call.
+
+        Priority: wizard's `linkedin_scopes` field (so the user can edit
+        before clicking Connect) → linked account's stored scopes
+        (re-auth flow) → module default. Always emit a space-separated
+        token list with duplicates removed and preserving order.
+        """
+        self.ensure_one()
+        raw = (
+            self.linkedin_scopes
+            or (self.account_id and self.account_id.linkedin_scopes)
+            or " ".join(_SCOPE_LINKEDIN_DEFAULT)
+        )
+        seen, ordered = set(), []
+        for tok in raw.split():
+            if tok and tok not in seen:
+                seen.add(tok)
+                ordered.append(tok)
+        return " ".join(ordered)
+
     def _action_add_account(self):
         result = super()._action_add_account()
         context = dict(self.env.context)
@@ -52,7 +84,7 @@ class WizardSocialAccount(models.TransientModel):
                 "client_id": self.linkedin_client,
                 "redirect_uri": self._get_url_redirect(),
                 "state": self.csrf_state_token,
-                "scope": " ".join(_SCOPE_LINKEDIN),
+                "scope": self._get_linkedin_scopes(),
             }
             url_aut = f"{_URL_AUTH_V2_LINKEDIN}/authorization?{url_encode(params)}"
             if not context.get("only_url", False):

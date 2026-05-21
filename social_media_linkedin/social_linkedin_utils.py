@@ -13,20 +13,45 @@ _HEADERS_LINKEDIN = {
     "LinkedIn-Version": _VERSION_STRING,
 }
 
-_SCOPE_LINKEDIN = [
+# Default OAuth scopes requested when none is configured on the
+# social.account. The five entries below cover what the OCA module
+# itself actually exercises (org-page posting + reads). LinkedIn's
+# OAuth endpoint rejects the entire authorization request if the
+# app on the dev portal doesn't have a Product approved for any
+# requested scope — so we keep the default narrow and let admins
+# opt into more via the per-account `linkedin_scopes` field once
+# their app has the matching Product (Marketing Developer Platform,
+# Advertising API, Sign In with LinkedIn, etc.).
+_SCOPE_LINKEDIN_DEFAULT = [
+    # Sign In with LinkedIn (default product, always available)
     "profile",
-    "r_ads_reporting",
+    "email",
+    # Marketing Developer Platform (org-page posting + reads)
     "r_organization_social",
+    "w_organization_social",
+    "r_organization_admin",
+]
+
+# All scopes the module knows how to use, for the help-text on the
+# wizard. Adding any of these to the per-account `linkedin_scopes`
+# requires the corresponding LinkedIn Product to be approved on the
+# dev app — otherwise OAuth fails with "Bummer, something went wrong".
+_SCOPE_LINKEDIN_KNOWN = _SCOPE_LINKEDIN_DEFAULT + [
+    # Advertising API (only needed if Ads features are used)
+    "r_ads",
+    "rw_ads",
+    "r_ads_reporting",
+    # Marketing Developer Platform (extended)
     "rw_organization_admin",
     "w_member_social",
-    "r_ads",
-    "w_organization_social",
-    "rw_ads",
+    # Legacy / restricted (older apps may still have these)
     "r_basicprofile",
-    "r_organization_admin",
-    "email",
     "r_1st_connections_size",
 ]
+
+# Back-compat alias: any downstream code still importing the legacy
+# name resolves to the new conservative default.
+_SCOPE_LINKEDIN = _SCOPE_LINKEDIN_DEFAULT
 
 _FIELDS_CAMPAIGN_LINKEDIN = "id,name,test,account"
 _FIELDS_STATISTIC_LINKEDIN = (
