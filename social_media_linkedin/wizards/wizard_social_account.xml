@@ -15,15 +15,15 @@
                 <field
                     name="linkedin_client"
                     readonly="0"
-                    required="media_type == 'linkedin' or (update_keys and context.get('social_update_account', False))"
-                    invisible="media_type != 'linkedin' or (not update_keys and context.get('social_update_account', False))"
+                    required="step == 'credentials' and (media_type == 'linkedin' or (update_keys and context.get('social_update_account', False)))"
+                    invisible="step != 'credentials' or media_type != 'linkedin' or (not update_keys and context.get('social_update_account', False))"
                 />
                 <field
                     name="linkedin_secret"
                     readonly="0"
                     password="True"
-                    required="media_type == 'linkedin' or (update_keys and context.get('social_update_account', False))"
-                    invisible="media_type != 'linkedin' or (not update_keys and context.get('social_update_account', False))"
+                    required="step == 'credentials' and (media_type == 'linkedin' or (update_keys and context.get('social_update_account', False)))"
+                    invisible="step != 'credentials' or media_type != 'linkedin' or (not update_keys and context.get('social_update_account', False))"
                 />
             </xpath>
         </field>
