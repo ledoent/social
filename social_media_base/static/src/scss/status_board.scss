@@ -1,0 +1,166 @@
+// Tier 2 — Connection Health Board.
+// Status-card kanban styling for `social.account`. Brand color is
+// injected inline from `record.media_brand_color` so each platform's
+// card carries its own visual identity without per-platform SCSS.
+
+.o-social-status-board {
+    .o-social-status-card {
+        display: flex;
+        background: #fff;
+        border: 1px solid #e3e8ee;
+        border-radius: 8px;
+        overflow: hidden;
+        min-width: 320px;
+        margin: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        transition:
+            box-shadow 0.15s ease,
+            transform 0.15s ease;
+
+        &:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+        }
+    }
+
+    .o-social-status-card__band {
+        width: 4px;
+        flex-shrink: 0;
+        background: #8895a4;
+    }
+
+    .o-social-status-card__body {
+        padding: 16px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .o-social-status-card__header {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .o-social-status-card__avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+        object-fit: cover;
+        background: #f3f5f7;
+    }
+
+    .o-social-status-card__title {
+        min-width: 0;
+
+        strong {
+            display: block;
+            font-size: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        small {
+            color: #5a6878;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+    }
+
+    .o-social-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        margin-bottom: 12px;
+        background: #f3f5f7;
+        color: #5a6878;
+    }
+
+    .o-social-status-pill__dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        flex-shrink: 0;
+    }
+
+    // Pill color modifiers — keep semantic names matching health_status
+    // selection values so the template can use:
+    //   o-social-status-pill--#{record.health_status.raw_value}
+    .o-social-status-pill--healthy {
+        background: #f4fbf6;
+        color: #1e6b3a;
+    }
+
+    .o-social-status-pill--warning,
+    .o-social-status-pill--rate_limited {
+        background: #fdf6e3;
+        color: #8a6d09;
+    }
+
+    .o-social-status-pill--expired,
+    .o-social-status-pill--disconnected {
+        background: #fbf0ee;
+        color: #b3382c;
+    }
+
+    .o-social-status-pill--never_connected {
+        background: #f3f5f7;
+        color: #5a6878;
+    }
+
+    .o-social-status-card__metrics {
+        font-size: 13px;
+        color: #2c3a47;
+        margin-bottom: 12px;
+
+        > div + div {
+            margin-top: 4px;
+        }
+    }
+
+    .o-social-status-delta--up {
+        color: #1e6b3a;
+        margin-left: 6px;
+        font-weight: 500;
+    }
+
+    .o-social-status-delta--down {
+        color: #b3382c;
+        margin-left: 6px;
+        font-weight: 500;
+    }
+
+    .o-social-status-card__lastpost {
+        color: #5a6878;
+    }
+
+    .o-social-status-card__actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+
+        .btn {
+            font-size: 12px;
+        }
+    }
+
+    // Mobile collapse
+    @media (max-width: 480px) {
+        .o-social-status-card {
+            min-width: 0;
+            width: 100%;
+        }
+
+        .o-social-status-card__actions .btn {
+            flex: 1 1 auto;
+        }
+    }
+}

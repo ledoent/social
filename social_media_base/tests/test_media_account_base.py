@@ -32,18 +32,22 @@ class TestSocialMediaBase(TestSocialMediaBaseCommon):
             mock_search.assert_called_once()
 
     def _patch_bus(self):
-        bus = self.env["bus.bus"]
+        """Patch `bus.bus._sendone` via unittest.mock so Odoo 18's test
+        framework (which tracks unexpected class-attribute mutations)
+        recognises the patch + restore as legitimate.
+        """
         self._calls = []
+        bus_cls = type(self.env["bus.bus"])
 
         def fake_sendone(self_rec, target, notif_type, payload):
             self._calls.append((target, notif_type, payload))
             return None
 
-        self._orig_sendone = type(bus)._sendone
-        type(bus)._sendone = fake_sendone
+        self._bus_patcher = patch.object(bus_cls, "_sendone", new=fake_sendone)
+        self._bus_patcher.start()
 
     def _restore_bus(self):
-        type(self.env["bus.bus"])._sendone = self._orig_sendone
+        self._bus_patcher.stop()
 
     def setUp(self):
         super().setUp()

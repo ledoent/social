@@ -49,6 +49,57 @@ Main features:
 Usage
 =====
 
+Connect a social account
+------------------------
+
+- Go to *Social Media* > *Configuration* > *Social Media*, click the
+  platform card (LinkedIn, Facebook, …).
+- The wizard opens on the **pre-flight scene** — branded introduction
+  band with the platform color, a one-line headline, a time estimate,
+  and a two-column scope disclosure ("We'll do" / "We won't touch").
+  Decide whether you have a developer app already; if not, click *Show
+  me how to make one* to open the platform's dev portal in a new tab.
+  The wizard state is preserved while you do that.
+- Click *I have an app →* to advance to the credentials step. Channel
+  modules (``social_media_linkedin``, ``social_media_facebook``)
+  populate the required fields there.
+
+Connection health board
+-----------------------
+
+- *Social Media* > *Configuration* > *Social Accounts* opens the
+  status-board kanban. Each card shows the platform brand band, the
+  account name + URL, the current **health pill** (Healthy / Warning /
+  Rate limited / Expired / Disconnected / Never connected), follower
+  count + 7-day delta arrow, the last published post timestamp, and
+  three actions: *Reconnect*, *Test post* (enabled only when the account
+  is Healthy), and *Disconnect*.
+- Cards sort by ``health_severity`` descending so degraded accounts
+  surface at the top.
+- The search view ships with two one-click filters: *Degraded* (any
+  non-healthy state) and *Healthy*. Group by *Platform* or *Status* for
+  triage across many accounts.
+
+Daily health refresh
+--------------------
+
+- The ``Social: refresh account health`` scheduled action (daily, 06:00
+  UTC by default) iterates every active ``social.account`` and calls the
+  channel module's ``_refresh_account_health()`` to update the follower
+  count + health status.
+- A follower-count snapshot is appended to
+  ``social.account.follower_history`` (a JSON column capped at 90
+  entries / ~3 months). Same-day re-runs overwrite the latest entry
+  rather than duplicating.
+- On any transition into a degraded state (Warning, Rate limited,
+  Expired, Disconnected), the cron calls ``_post_health_warning()`` —
+  default behavior schedules a "Reconnect **" ``mail.activity`` todo on
+  the user who connected the account. Stale activities from previous
+  degradations are removed so the activity list never accumulates
+  duplicates across recover-then-degrade cycles.
+- Schedule and cadence are editable: *Settings* > *Technical* >
+  *Scheduled Actions* > *Social: refresh account health*.
+
 Generate group campaign.
 ------------------------
 
@@ -65,6 +116,55 @@ Generate campaign.
 
 .. |CREATE_GROUP_CAMPAIGN| image:: https://raw.githubusercontent.com/social_media_base/static/img/readme/CREATE_GROUP_CAMPAIGN.png
 .. |CREATE_CAMPAIGN| image:: https://raw.githubusercontent.com/social_media_base/static/img/readme/CREATE_CAMPAIGN.png
+
+Known issues / Roadmap
+======================
+
+Planned improvements that are *not* in this module yet but are on the
+roadmap of the broader social-media consumer-grade onboarding effort.
+
+Connect wizard (Scene 2-4)
+--------------------------
+
+- **Smart credential entry** — live format validation on Client ID /
+  Client Secret as the user types; mask-by-default with one-click
+  reveal; a *Test these credentials* button that does an unauthenticated
+  OAuth probe and reports "These look valid" / "Platform doesn't
+  recognize this Client ID" before commit.
+- **Branded loader during OAuth redirect** — replace the blank "Opening
+  LinkedIn…" gap with a branded loading state, then a scope-specific
+  recovery message if the user grants the wrong scopes on the platform
+  side ("We didn't get ``w_organization_social`` — try again?").
+- **Success card with live data** — after a successful connect, show the
+  actual entity (avatar, follower count, sample of recent posts) pulled
+  live, plus a *Send test post* button that publishes + deletes to prove
+  the wiring works end-to-end.
+
+Status board (Tier 2 follow-ups)
+--------------------------------
+
+- **Sparkline trend** in each kanban card driven from
+  ``follower_history`` (visualise the JSON column).
+- **Per-error-code recovery copy** on failed ``social.post`` — surface
+  "Token revoked, click to reconnect" instead of generic 401 messages.
+- **Configurable delta windows** on
+  ``social.account.follower_count_delta_*`` (7d/30d hard-coded today;
+  let admins pick).
+
+Channel modules
+---------------
+
+- LinkedIn and Facebook channel implementations of
+  ``_refresh_account_health()`` and ``_test_post_and_delete()`` ship in
+  ``social_media_linkedin`` and ``social_media_facebook`` respectively
+  (separate PRs).
+
+Performance
+-----------
+
+- ``_compute_last_post`` filters all ``post_account_ids`` in Python; for
+  accounts with thousands of historical posts this should be rewritten
+  as a ``search(..., limit=1, order='published_date desc')`` query.
 
 Bug Tracker
 ===========
