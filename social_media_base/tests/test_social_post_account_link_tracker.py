@@ -26,7 +26,7 @@ class TestSocialPostAccountLinkTracker(TestSocialMediaBaseCommon):
             {
                 "name": "Social user",
                 "login": login,
-                "groups_id": [
+                "group_ids": [
                     Command.set(
                         [
                             self.env.ref("base.group_user").id,

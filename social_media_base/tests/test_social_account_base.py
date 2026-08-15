@@ -902,7 +902,7 @@ class TestSocialAccountBaseUsers(TestSocialMediaBaseCommon):
                 "login": "user_1_test",
                 "email": "user1@test.example.com",
                 "password": "test1234",
-                "groups_id": [(6, 0, [cls.env.ref("base.group_user").id])],
+                "group_ids": [(6, 0, [cls.env.ref("base.group_user").id])],
             }
         )
 
@@ -911,7 +911,7 @@ class TestSocialAccountBaseUsers(TestSocialMediaBaseCommon):
             {
                 "name": "Social user",
                 "login": "social_user_test",
-                "groups_id": [
+                "group_ids": [
                     (
                         6,
                         0,
@@ -931,7 +931,7 @@ class TestSocialAccountBaseUsers(TestSocialMediaBaseCommon):
             {
                 "name": "Social manager",
                 "login": "social_manager_test",
-                "groups_id": [
+                "group_ids": [
                     (
                         6,
                         0,

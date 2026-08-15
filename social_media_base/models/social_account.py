@@ -87,7 +87,7 @@ class SocialAccount(models.Model):
         help="Posts that target this account. Inverse of the accounts of a "
         "post, it is what keeps the counter up to date.",
     )
-    image_1920 = fields.Image(default=_default_image)
+    image_1920 = fields.Image(default=lambda self: self._default_image())
 
     comment_count = fields.Integer(default=0)
     like_count = fields.Integer(default=0)
@@ -149,7 +149,7 @@ class SocialAccount(models.Model):
             "type": "ir.actions.act_window",
             "name": _("Posts"),
             "res_model": "social.post",
-            "view_mode": "kanban,tree,form",
+            "view_mode": "kanban,list,form",
             "domain": [("account_ids", "in", self.ids)],
             "context": {"default_account_ids": [Command.set(self.ids)]},
         }
@@ -199,7 +199,7 @@ class SocialAccount(models.Model):
             "type": "ir.actions.act_window",
             "name": _("Marketing Campaigns"),
             "res_model": "utm.campaign",
-            "view_mode": "tree,form",
+            "view_mode": "list,form",
             "domain": [("id", "in", self._get_utm_campaigns().ids)],
         }
 
@@ -588,6 +588,8 @@ class SocialAccount(models.Model):
         :param domain: additional domain on the posts.
         :rtype: str
         """
+        # pylint: disable=no-search-all
+        # Deliberate: with no recordset the cron updates every account.
         accounts = self or self.search([])
         statistics = self._update_posts_statistics(post_id, domain)
         pending = accounts.filtered("pending_initial_sync")

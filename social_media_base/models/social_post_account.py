@@ -12,7 +12,8 @@ import requests
 from odoo import Command, _, api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.service.model import PG_CONCURRENCY_ERRORS_TO_RETRY
-from odoo.tools import TEXT_URL_REGEX, plaintext2html
+from odoo.tools import plaintext2html
+from odoo.tools.mail import TEXT_URL_REGEX
 
 from ..exceptions import SocialCredentialsError
 

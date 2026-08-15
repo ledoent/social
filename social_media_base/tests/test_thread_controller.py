@@ -53,7 +53,7 @@ class TestThreadControllerSocial(HttpCase, TestSocialMediaBaseCommon):
                 "login": "social_manager_http",
                 "password": "social_manager_http",
                 "email": "social.manager@test.example.com",
-                "groups_id": [
+                "group_ids": [
                     (
                         6,
                         0,

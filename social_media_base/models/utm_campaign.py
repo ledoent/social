@@ -189,7 +189,7 @@ class UtmCampaign(models.Model):
             "type": "ir.actions.act_window",
             "name": _("Social Media Posts"),
             "res_model": "social.post",
-            "view_mode": "kanban,tree,form",
+            "view_mode": "kanban,list,form",
             "domain": [("campaign_id", "=", self.id)],
             "context": {"default_campaign_id": self.id},
         }

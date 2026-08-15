@@ -103,7 +103,7 @@
             <!-- A publication mirrors the social media, like the kanban of
                  the dashboard it shares its action with: it is listed, never
                  written from here. -->
-            <tree
+            <list
                 create="0"
                 edit="0"
                 delete="0"
@@ -135,7 +135,7 @@
                 <field name="share_count" string="Shares" optional="hide" />
                 <field name="impression_count" string="Impressions" optional="hide" />
                 <field name="state" widget="badge" />
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -427,7 +427,7 @@
                     name="without_campaign"
                     domain="[('campaign_id', '=', False)]"
                 />
-                <group expand="0" string="Group By">
+                <group>
                     <filter
                         string="Accounts"
                         name="group_by_account_id"
@@ -463,7 +463,7 @@
     <record model="ir.actions.act_window" id="social_post_account_action">
         <field name="name">Dashboard</field>
         <field name="res_model">social.post.account</field>
-        <field name="view_mode">kanban,tree</field>
+        <field name="view_mode">kanban,list</field>
         <field name="domain">[('remote_ref', '!=', False)]</field>
         <field name="context">{'search_default_group_by_account_id': 1}</field>
         <field name="search_view_id" ref="social_post_account_view_search" />

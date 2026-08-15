@@ -1315,7 +1315,7 @@ class TestSocialPostBaseUsers(TestSocialMediaBaseCommon):
             {
                 "name": "Other social user",
                 "login": "other_media_user_test",
-                "groups_id": [
+                "group_ids": [
                     Command.set(
                         [
                             self.env.ref("base.group_user").id,
@@ -1342,7 +1342,7 @@ class TestSocialPostBaseUsers(TestSocialMediaBaseCommon):
             {
                 "name": "Other responsible",
                 "login": "other_responsible_test",
-                "groups_id": [
+                "group_ids": [
                     Command.set(
                         [
                             self.env.ref("base.group_user").id,
