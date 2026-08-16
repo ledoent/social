@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright 2025 Binhex <https://www.binhex.cloud>
+     License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<templates xml:space="preserve">
+    <t t-name="social_media_base.SocialFilter">
+        <div
+            class="d-flex justify-content-between align-items-center social-media-filter"
+            t-ref="root"
+        >
+
+            <Dropdown
+                t-if="props.filterGranularity and state.currentFilterType"
+                class="'btn-group flex-grow-1 flex-md-grow-0 mx-1'"
+                togglerClass="'btn btn-secondary'"
+                showCaret="true"
+            >
+                <t t-set-slot="toggler">
+                    <t t-esc="state.currentFilterType.name" />
+                </t>
+                <t t-foreach="filterTypes" t-as="flt" t-key="flt.id">
+                    <DropdownItem
+                        onSelected="() => this.onSelectTypeRange(flt)"
+                        t-esc="flt.name"
+                        class="{selected : flt.id == state.currentFilterType.id }"
+                    />
+                </t>
+            </Dropdown>
+
+            <div class="d-flex align-items-center gap-2 mx-1">
+                <input
+                    t-ref="start-date"
+                    type="text"
+                    class="form-control cursor-pointer"
+                    autocomplete="off"
+                />
+                <i
+                    class="fa fa-long-arrow-right"
+                    aria-label="Arrow icon"
+                    title="Arrow"
+                />
+                <input
+                    t-ref="end-date"
+                    type="text"
+                    class="form-control cursor-pointer"
+                    autocomplete="off"
+                />
+            </div>
+        </div>
+    </t>
+</templates>

@@ -1,0 +1,13 @@
+.social-campaign-badge {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
