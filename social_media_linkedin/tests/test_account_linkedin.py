@@ -2189,7 +2189,7 @@ class TestSocialLinkedin(TestSocialCommonLinkedin):
             {
                 "name": "Social manager without system access",
                 "login": "social_manager_no_system_test",
-                "groups_id": [
+                "group_ids": [
                     Command.set(
                         [
                             self.env.ref("base.group_user").id,
@@ -2294,7 +2294,7 @@ class TestSocialLinkedin(TestSocialCommonLinkedin):
             {
                 "name": "Other social user",
                 "login": "other_social_user_test",
-                "groups_id": [
+                "group_ids": [
                     (
                         6,
                         0,
