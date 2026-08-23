@@ -7,13 +7,32 @@
         <field name="model">utm.campaign</field>
         <field name="inherit_id" ref="utm.utm_campaign_view_form" />
         <field name="arch" type="xml">
+            <!-- None of these is marked `required` on the model, and none may
+                 be marked required here either. `utm.campaign` is shared:
+                 mass_mailing, crm and the website all create campaigns that
+                 have nothing to do with a social media, and a view-level
+                 `required="1"` on this form applies to all of them — it makes
+                 every campaign in the database unsavable, not just the social
+                 ones.
+
+                 `media_id` was additionally a deadlock on a plain
+                 `social_media_base` install: its domain is
+                 `[('id','in',allow_media_ids)]`, `allow_media_ids` is computed
+                 from `_available_campaign()`, and the base implementation
+                 returns `[]` — so the field was required with nothing that
+                 could be selected in it.
+
+                 `account_id` documents itself as optional in its own `help`,
+                 and what a social campaign genuinely needs is already enforced
+                 where it is consumed: `social.post.campaign_id` is domained on
+                 `[("account_id", "!=", False)]`, so a campaign without an
+                 account simply cannot be picked for a post. -->
             <xpath expr="//field[@name='name']" position="after">
                 <field name="allow_media_ids" invisible="1" />
-                <field name="campaign_group_id" required="1" />
-                <field name="media_id" required="1" />
+                <field name="campaign_group_id" />
+                <field name="media_id" />
                 <field
                     name="account_id"
-                    required="1"
                     options="{'no_create_edit': True, 'no_create': True}"
                     invisible="not media_id"
                 />
