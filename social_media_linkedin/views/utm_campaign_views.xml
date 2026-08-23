@@ -7,10 +7,19 @@
         <field name="model">utm.campaign</field>
         <field name="inherit_id" ref="utm.utm_campaign_view_form" />
         <field name="arch" type="xml">
+            <!-- Not required, for the same reason as the fields added by
+                 `social_media_base` — see the note in
+                 social_media_base/views/utm_campaign_views.xml.
+
+                 `currency_id` deserves its own note: it is
+                 `related="campaign_group_id.currency_id"` and therefore
+                 read-only, so `required="1"` asked the user for something the
+                 form gives them no way to supply. `unit_cost` and
+                 `daily_budget` are floats on which 0 is a legitimate value. -->
             <xpath expr="//field[@name='title']" position="after">
-                <field name="unit_cost" required="1" />
-                <field name="daily_budget" required="1" />
-                <field name="currency_id" required="1" />
+                <field name="unit_cost" />
+                <field name="daily_budget" />
+                <field name="currency_id" />
             </xpath>
         </field>
     </record>
@@ -20,10 +29,12 @@
         <field name="model">utm.campaign</field>
         <field name="inherit_id" ref="utm.utm_campaign_view_tree" />
         <field name="arch" type="xml">
+            <!-- Required here blocked inline creation and editing of any
+                 campaign from the list, the same way it blocked the form. -->
             <xpath expr="//field[@name='name']" position="after">
-                <field name="unit_cost" required="1" />
-                <field name="daily_budget" required="1" />
-                <field name="currency_id" required="1" />
+                <field name="unit_cost" />
+                <field name="daily_budget" />
+                <field name="currency_id" />
             </xpath>
         </field>
     </record>
