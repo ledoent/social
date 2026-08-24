@@ -72,7 +72,7 @@
                             <field name="count_post_engagement" />
                             <field name="user_id" />
                             <templates>
-                                <t t-name="kanban-box">
+                                <t t-name="card">
                                     <!-- Every block is delimited by a rule so
                                          that state, message, figures and date
                                          read as separate things instead of as

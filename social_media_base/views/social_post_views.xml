@@ -157,7 +157,7 @@
                                     <field name="account_id" />
                                     <field name="failed_description" />
                                     <templates>
-                                        <t t-name="kanban-box">
+                                        <t t-name="card">
                                             <div
                                                 t-attf-class="rounded cursor-pointer oe_kanban_social_dashboard d-flex flex-column justify-content-between"
                                             >
@@ -259,7 +259,7 @@
                 <field name="count_post_interactions" />
                 <field name="count_post_engagement" />
                 <templates>
-                    <t t-name="kanban-box">
+                    <t t-name="card">
                         <div class="oe_kanban_global_click rounded">
                             <div class="d-flex flex-column">
                                 <div
