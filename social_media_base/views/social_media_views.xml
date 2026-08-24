@@ -11,15 +11,24 @@
                 <field name="name" />
                 <field name="description" />
                 <field name="image" />
+                <!-- `write_date` is read only to bust the image cache below. The
+                     parser used to add it on its own whenever it saw
+                     `kanban_image` in a `t-att-src`; with that helper gone the
+                     field has to be asked for explicitly. -->
+                <field name="write_date" />
                 <templates>
                     <t t-name="card">
                         <div class="d-flex rounded">
-                            <t
-                                t-set="image_account"
-                                t-value="kanban_image('social.media', 'image', record.id.raw_value)"
-                            />
+                            <!-- The `kanban_image()` QWeb helper was removed in
+                                 19.0. It is not deprecated-but-working: it is
+                                 undefined, so the template dies at render with
+                                 `ctx.kanban_image is not a function` and takes
+                                 the whole view with it. Core builds the
+                                 `/web/image/` URL by hand now, with `unique`
+                                 carrying the write date so a replaced image is
+                                 not served from cache. -->
                             <img
-                                t-attf-src="#{image_account}"
+                                t-attf-src="/web/image/social.media/#{record.id.raw_value}/image?unique=#{record.write_date.raw_value}"
                                 class="img img-fluid"
                                 height="50"
                                 width="100"
