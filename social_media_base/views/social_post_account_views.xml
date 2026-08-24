@@ -34,7 +34,7 @@
                 <field name="remote_ref" />
                 <field name="account_remote_ref" />
                 <templates>
-                    <t t-name="kanban-menu">
+                    <t t-name="menu">
                         <div class="p-1">
                             <a
                                 role="menuitem"
@@ -51,7 +51,7 @@
                             >Delete post</a>
                         </div>
                     </t>
-                    <t t-name="kanban-box">
+                    <t t-name="card">
                         <div
                             t-attf-class="rounded cursor-pointer oe_kanban_social_dashboard d-flex flex-column justify-content-between"
                         >
@@ -204,7 +204,7 @@
                             <kanban create="0" delete="0">
                                 <field name="id" />
                                 <templates>
-                                    <t t-name="kanban-box">
+                                    <t t-name="card">
                                         <div class="border-0">
                                             <img
                                                 t-attf-src="/web/image/#{record.id.raw_value}"
@@ -243,7 +243,7 @@
                                 <field name="id" />
                                 <field name="mimetype" />
                                 <templates>
-                                    <t t-name="kanban-box">
+                                    <t t-name="card">
                                         <div class="border-0">
                                             <video
                                                 controls="controls"
