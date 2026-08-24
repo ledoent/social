@@ -115,11 +115,9 @@
                         </page>
                     </notebook>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids" groups="base.group_user" />
-                    <field name="activity_ids" />
-                    <field name="message_ids" />
-                </div>
+                <!-- See the note on the same change in social_post_views.xml:
+                     18.0 replaced `oe_chatter` with the <chatter/> element. -->
+                <chatter />
             </form>
         </field>
     </record>

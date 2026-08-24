@@ -199,11 +199,14 @@
                         </page>
                     </notebook>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids" groups="base.group_user" />
-                    <field name="activity_ids" />
-                    <field name="message_ids" />
-                </div>
+                <!-- 18.0 replaced the hand-rolled `oe_chatter` div with a single
+                     <chatter/> element, and core carries no `oe_chatter` at all
+                     any more. Left as the div, the three fields still resolve —
+                     so nothing errors — and they render as bare x2many LISTS at
+                     the bottom of the form ("Related Document Model Name",
+                     "Summary / Activity Type / Assigned to"). The form looks
+                     broken and the messaging UI is simply absent. -->
+                <chatter />
             </form>
         </field>
     </record>
